@@ -9,58 +9,58 @@ import math
 from sys import maxsize
 
 
-class SimulatedAnnealing:
-    def __init__(self, temperature, a, max_time):
-        self.temperature = temperature
+class TabuSearch:
+    def __init__(self, max_time):
         self.best_path = maxsize
         self.lowest_cost = maxsize
         self.current_path = maxsize
         self.current_cost = maxsize
         self.max_time = max_time
         self.counter = 0
-        self.a = a
+        self.tabu_list = []
         pass
 
-    def check_data_init(self):
-        if self.temperature == 0:
-            self.temperature = 1000
-        if self.a == 0:
-            self.a = 0.9
-        if self.max_time == 0:
-            self.max_time = 100
-
     def find_solution(self, nodes):
-        self.check_data_init()
         size = len(nodes)
         total_time = 0
         find_time = 0
         self.current_path, self.lowest_cost = self.first_solution(nodes, size)
         self.best_path = self.current_path
+        self.tabu_list = [[0 for i in range(size)] for i in range(size)]
         while total_time < self.max_time:
             start = time.process_time()
             if self.counter > size:
                 self.current_path = self.best_path
-                self.temperature = size * 10
                 self.counter = 0
-
+                self.tabu_list = [[0 for i in range(size)] for i in range(size)]
             v1 = random.randint(0, size - 1)
-            new_cost, new_path = self.find_best_transformation(v1, nodes)
+            new_cost, new_path, v2 = self.find_best_transformation(v1, nodes)
 
-            if new_cost < self.lowest_cost:
+            if new_cost < self.lowest_cost:  # przejscie lepsze
                 find_time = total_time
                 self.best_path = new_path
                 self.current_path = new_path
                 self.lowest_cost = new_cost
-                self.counter = 0
+
+            elif self.tabu_list[v1][v2] > 0:
+                continue
+
             else:
+                self.current_path = new_path
                 self.counter += 1
-                probability = math.exp((self.lowest_cost - new_cost) / self.temperature)
-                if random.random() < probability:
-                    self.current_path = new_path
+
+            self.tabu_list[v1][v2] += size   #ustawienie kadencji
+            self.verify_tabu()
             duration = time.process_time() - start
+
             total_time += duration
-            self.temperature = self.temperature * self.a
-        return self.best_path, self.lowest_cost, self.temperature, find_time
+        return self.best_path, self.lowest_cost, find_time
+
+    def verify_tabu(self):
+        for x, rows in enumerate(self.tabu_list):
+            for y, i in enumerate(rows):
+                if type(i) == int and i > 0:
+                    self.tabu_list[x][y] = i - 1
 
     def first_solution(self, nodes, size):
         help_list = copy.deepcopy(nodes)
@@ -96,5 +96,5 @@ class SimulatedAnnealing:
                 transformed_path = copy.deepcopy(self.current_path)
                 self.swap(node, i, transformed_path)
                 transformed_cost = self.calculate_cost(nodes, transformed_path)
-                queue.put((transformed_cost, transformed_path))
+                queue.put((transformed_cost, transformed_path, i))
         return queue.get()
