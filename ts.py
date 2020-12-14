@@ -8,33 +8,41 @@ import operator
 import math
 from sys import maxsize
 
-
+#klasa służaca do zanjdowania rozwiązania metoda tabu search
 class TabuSearch:
-    def __init__(self, max_time):
+    def __init__(self, nodes, deadline):
+        self.nodes = nodes
+        self.size = 0
         self.best_path = maxsize
         self.lowest_cost = maxsize
         self.current_path = maxsize
         self.current_cost = maxsize
-        self.max_time = max_time
-        self.counter = 0
+        self.deadline = deadline
+        self.no_improvement_counter = 0
         self.tabu_list = []
         pass
+    #sprawdzenie czy użytkownik wprowadził parametry, jesli nie wczytanie domyślnych
+    def check_data_init(self):
+        if self.deadline == 0:
+            self.deadline = 100
 
-    def find_solution(self, nodes):
-        size = len(nodes)
+    # funkcja znajdująca rozwiązanie dla grafu
+    def find_solution(self):
+        self.check_data_init()
         total_time = 0
         find_time = 0
-        self.current_path, self.lowest_cost = self.first_solution(nodes, size)
-        self.best_path = self.current_path
-        self.tabu_list = [[0 for i in range(size)] for i in range(size)]
-        while total_time < self.max_time:
+        self.size = len(self.nodes)
+        self.current_path, self.lowest_cost = self.generate_solution() # przypisanie wygenerowanego rozwiązania do zmiennych
+        self.best_path = self.current_path # przypisanie do najlepszego rozwiązania
+        self.tabu_list = [[0 for i in range(self.size)] for i in range(self.size)] # wyzerownia listy tabu
+        while total_time < self.deadline:  # sprawdzenie czy nie przekroczono warunku zatrzymania
             start = time.process_time()
-            if self.counter > size:
-                self.current_path = self.best_path
-                self.counter = 0
-                self.tabu_list = [[0 for i in range(size)] for i in range(size)]
-            v1 = random.randint(0, size - 1)
-            new_cost, new_path, v2 = self.find_best_transformation(v1, nodes)
+            if self.no_improvement_counter > self.size: # sprawdzenie czy liczba iteracji bez poprawy rozwiązania nie przekroczyła zakresu
+                self.current_path, t = self.generate_solution() # wygenerowanie nowej ścieżki
+                self.no_improvement_counter = 0 # wyzerowanie licznika
+                self.tabu_list = [[0 for i in range(self.size)] for i in range(self.size)] # wyzerownia listy tabu
+            v1 = random.randint(0, self.size-1) # wylosowanie wierzchołka
+            new_cost, new_path, v2 = self.find_best_transformation(v1) # znalezienie najlepszej transformacji dla wierzchołka
 
             if new_cost < self.lowest_cost:  # przejscie lepsze
                 find_time = total_time
@@ -42,59 +50,73 @@ class TabuSearch:
                 self.current_path = new_path
                 self.lowest_cost = new_cost
 
-            elif self.tabu_list[v1][v2] > 0:
+            elif self.tabu_list[v1][v2] > 0: # przejście gorsze znajdujace sie na liście tabu
                 continue
 
-            else:
+            else:  # przejście gorsze nie znajdujace sie na liście tabu
                 self.current_path = new_path
-                self.counter += 1
+                self.no_improvement_counter += 1
 
-            self.tabu_list[v1][v2] += size   #ustawienie kadencji
-            self.verify_tabu()
+            self.tabu_list[v1][v2] += self.size   # ustawienie kadencji
+            self.verify_tabu(self.tabu_list) # zaktualizowanie listy tabu
             duration = time.process_time() - start
 
             total_time += duration
         return self.best_path, self.lowest_cost, find_time
 
-    def verify_tabu(self):
-        for x, rows in enumerate(self.tabu_list):
-            for y, i in enumerate(rows):
-                if type(i) == int and i > 0:
-                    self.tabu_list[x][y] = i - 1
+    # funkcja dekrementująca wartości w liście tabu
+    def verify_tabu(self, tabu_list):
+        help_list = []
+        help_row = []
+        for rows in tabu_list:
+            for cols in rows:
+                if cols > 0:
+                    cols = cols - 1
+                else:
+                    cols = cols
+                help_row.append(cols)
+            help_list.append(help_row)
+            help_row = []
+        tabu_list = help_list
+        return tabu_list
 
-    def first_solution(self, nodes, size):
-        help_list = copy.deepcopy(nodes)
-        node = random.randint(0, size - 1)
+    # funkcja generujaca losowe rozwiązanie metoda zachłanną
+    def generate_solution(self):
+        help_list = copy.deepcopy(self.nodes)
+        node = random.randint(0, self.size-1) # wylosowanie wierzchołka startowego
         path = []
-        for i in range(0, size):
+        for i in range(0, self.size):
             help_list[i][node] = 100000000
 
-        while len(path) < size:
+        while len(path) < self.size:
             path.append(node)
             min_value = min(help_list[node])
             node = help_list[node].index(min_value)
-            for i in range(0, size):
+            for i in range(0, self.size):
                 help_list[i][node] = 100000000
-        cost = self.calculate_cost(nodes, path)
+        cost = self.calculate_cost(path)
         return path, cost
 
-    def calculate_cost(self, nodes, path):
+    # funkcja obliczajca koszt przejścia ścieżki
+    def calculate_cost(self, path):
         cost = 0
         for i in range(1, len(path)):
-            cost += nodes[path[i - 1]][path[i]]
-        cost += nodes[path[len(nodes) - 1]][path[0]]
+            cost += self.nodes[path[i - 1]][path[i]]
+        cost += self.nodes[path[len(self.nodes) - 1]][path[0]]
         return cost
 
+    # funkcja podmienająca dwa wierzchołki w ścieżce
     def swap(self, node1, node2, path):
         path[node1], path[node2] = path[node2], path[node1]
+        return path
 
-    def find_best_transformation(self, node, nodes):
-        queue = PriorityQueue()
-        size = len(nodes)
-        for i in range(0, size - 1):
+    # funkcja znajdująca najlepsze sąsiedztwo
+    def find_best_transformation(self, node):
+        queue = PriorityQueue() # kolejka priorytetowa szeregująca wyniki według najnizszego kosztu
+        for i in range(0, self.size - 1):
             if i != node:
                 transformed_path = copy.deepcopy(self.current_path)
-                self.swap(node, i, transformed_path)
-                transformed_cost = self.calculate_cost(nodes, transformed_path)
-                queue.put((transformed_cost, transformed_path, i))
-        return queue.get()
+                transformed_path = self.swap(node, i, transformed_path) # podmienienie wierzchołków w ścieżce
+                transformed_cost = self.calculate_cost(transformed_path)
+                queue.put((transformed_cost, transformed_path, i)) # umieszczenie rozwiązania w kolejce priorytetowej
+        return queue.get() # zwrócenie najlepszego rozwiązania

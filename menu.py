@@ -23,14 +23,14 @@ class Menu:
             print('4. Ustaw współczynnik zmainy temperatury dla SW')
             print('5. Ustaw temperature')
             print('6. SW')
-            print('8. Wyjście')
+            print('7. Wyjście')
 
             self.choice = input('Wybór: ')
 
             if self.choice == '1':
                 self.read_data.show_avaiable_files()
-                #file_name = input("Podaj nazwe pliku: ")
-                file_name = 'ftv47.atsp'
+                file_name = input("Podaj nazwe pliku: ")
+                #file_name = 'ftv170.atsp'
                 try:
                     open(format(file_name), "r")
                     self.nodes = self.read_data.read_file(file_name)
@@ -42,10 +42,12 @@ class Menu:
                 self.max_time = int(input("Podaj czas: "))
 
             elif self.choice == '3':
-                self.tabu_search = TabuSearch(self.max_time)
-                best_path, best_sol,find_time = self.tabu_search.find_solution(self.nodes)
-                print(best_path, best_sol,find_time)
-            
+                self.tabu_search = TabuSearch(self.nodes,self.max_time)
+                best_path, best_sol,find_time = self.tabu_search.find_solution()
+                print('Ścieżka: ', best_path)
+                print('Koszt: ',  best_sol)
+                print('Czas: ', find_time)
+
             elif self.choice == '4':
                 self.a = float(input("Podaj współczynnik schładzania: "))
 
@@ -55,16 +57,14 @@ class Menu:
             elif self.choice == '6':
                 self.sa = SimulatedAnnealing(self.temperature, self.a, self.max_time)
                 best_path, best_sol, end_temp, find_time = self.sa.find_solution(self.nodes)
-                print(best_path, best_sol, end_temp, find_time)
+                print('Ścieżka: ', best_path)
+                print('Koszt: ', best_sol)
+                print('Temperatura koncowa: ', end_temp)
+                print('Czas: ', find_time)
             elif self.choice == '7':
                 exit()
 
             else:
-                for i in range(10):
-                    self.tabu_search = TabuSearch(120)
-                    best_path, best_sol, find_time = self.tabu_search.find_solution(self.nodes)
-                    print(best_path, best_sol, find_time)
-
                 print("Wprowadz poprawną liczbę")
 
 

@@ -2,15 +2,16 @@ from os import scandir
 import copy
 import re
 
-
+# klasa odpowiadająca za obsługę plików
 class Read_data:
 
+    # wyświetlenie dostępnych plików
     def show_avaiable_files(self):
         for file in scandir():
             if file.name[-5:] == ".atsp":
                 print(file.name)
 
-
+    # wczytanie wybranego pliku do list
     def read_file(self, file_name):
         nodes = []
         row = []
